@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Daily Content Factory — CBTLearning</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+html,body{
+  margin:0; padding:0;
+  background:#000; color:#fff;
+  font-family:system-ui, sans-serif;
+  height:100%; overflow:hidden;
+}
+#app{
+  width:100vw; height:100vh;
+  display:flex; align-items:center; justify-content:center;
+}
+.card{
+  width:360px; height:640px;
+  border:2px solid #222;
+  border-radius:20px;
+  padding:16px;
+  display:flex; flex-direction:column;
+  justify-content:space-between;
+}
+.badge{font-size:12px; opacity:.7; text-align:center;}
+.hook{font-size:26px; font-weight:700; text-align:center;}
+.question{font-size:22px; text-align:center;}
+.options{
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:10px; margin-top:12px;
+}
+.opt{
+  border:1px solid #444; padding:10px;
+  border-radius:8px; text-align:center;
+}
+.timer{font-size:20px; text-align:center; opacity:.8;}
+.reveal{color:#0f0; font-weight:700; text-align:center;}
+.footer{font-size:14px; opacity:.7; text-align:center;}
+.btn{
+  padding:10px; background:#fff; color:#000;
+  border:none; border-radius:10px;
+  font-weight:700;
+}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="card">
+    <div class="badge" id="badge"></div>
+    <div class="hook" id="hook"></div>
+    <div class="timer" id="timer"></div>
+    <div class="question" id="question"></div>
+    <div class="options" id="options"></div>
+    <div class="reveal hidden" id="reveal"></div>
+    <div class="footer" id="footer"></div>
+    <button class="btn" onclick="next()">NEXT</button>
+  </div>
+</div>
+
+<script>
+// ============================
+// CORE ENGINE — PART 1
+// ============================
+
+// --- HOOKS ---
+const HOOKS = [
+  "Only 1% pass this",
+  "Your brain will lie",
+  "Don't answer fast",
+  "Most people fail Q2",
+  "Looks easy. Isn't."
+];
+
+// --- CTA ---
+const CTAS = [
+  "Comment your answer",
+  "Replay if wrong",
+  "Follow for daily tests",
+  "Try tomorrow"
+];
+
+// --- MODES ---
+const MODES = ["numeric","logic","pattern","mixed"];
+const MODE = MODES[new Date().getDay() % MODES.length];
+
+// --- SAMPLE TRAPS (Part 2 will inject 100+) ---
+const TRAPS = [
+  {id:1,type:"numeric",lvl:1,q:"7 + 7 × 0 = ?",o:["0","7","14","49"],a:"7"},
+  {id:2,type:"numeric",lvl:2,q:"(8 ÷ 4)² = ?",o:["4","2","8","16"],a:"4"},
+  {id:3,type:"logic",lvl:1,q:"All bloops are razzies. All razzies are lazzies. Are all bloops lazzies?",o:["Yes","No","Maybe","Unknown"],a:"Yes"},
+  {id:4,type:"logic",lvl:2,q:"Which is heavier: 1kg steel or 1kg feathers?",o:["Steel","Feathers","Same","Unknown"],a:"Same"},
+  {id:5,type:"pattern",lvl:1,q:"2,4,8,16, ?",o:["18","24","30","32"],a:"32"},
+  {id:6,type:"mixed",lvl:3,q:"Bat & ball = $1.10. Bat is $1 more. Ball = ?",o:["$0.10","$0.05","$0.01","$0.50"],a:"$0.05"}
+];
+
+// --- MEMORY ---
+let used = JSON.parse(localStorage.getItem("used")||"[]");
+
+// --- UTILS ---
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+// --- BUILD 3-QUESTION LADDER ---
+function buildLadder(){
+  let pool = TRAPS.filter(t=>MODE==="mixed" || t.type===MODE);
+  pool = pool.filter(t=>!used.includes(t.id));
+  if(pool.length < 3){ used=[]; pool = TRAPS; }
+  pool = shuffle(pool).sort((a,b)=>a.lvl-b.lvl);
+  const ladder = pool.slice(0,3);
+  ladder.forEach(t=>used.push(t.id));
+  localStorage.setItem("used", JSON.stringify(used));
+  return ladder;
+}
+
+let ladder = buildLadder();
+let step = 0;
+let timerInterval;
+let countdown = 4;
+
+// --- RENDER ---
+function render(){
+  const q = ladder[step];
+  document.getElementById("badge").innerText = `MODE: ${MODE.toUpperCase()} | Q ${step+1}/3`;
+  document.getElementById("hook").innerText = pick(HOOKS);
+  document.getElementById("question").innerText = q.q;
+  document.getElementById("footer").innerText = pick(CTAS);
+
+  const optBox = document.getElementById("options");
+  optBox.innerHTML = "";
+  shuffle([...q.o]).forEach(opt=>{
+    const d = document.createElement("div");
+    d.className="opt";
+    d.innerText=opt;
+    optBox.appendChild(d);
+  });
+
+  document.getElementById("reveal").classList.add("hidden");
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(timerInterval);
+  countdown = 4;
+  const t = document.getElementById("timer");
+  t.innerText = "⏳ " + countdown;
+
+  timerInterval = setInterval(()=>{
+    countdown--;
+    t.innerText = "⏳ " + countdown;
+    if(countdown <= 0){
+      clearInterval(timerInterval);
+      reveal();
+    }
+  },1000);
+}
+
+function reveal(){
+  const r = document.getElementById("reveal");
+  r.innerText = "ANSWER: " + ladder[step].a;
+  r.classList.remove("hidden");
+}
+
+function next(){
+  step++;
+  if(step >= ladder.length){
+    ladder = buildLadder();
+    step = 0;
+  }
+  render();
+}
+
+// INIT
+render();
+</script>
+
+</body>
+</html>
